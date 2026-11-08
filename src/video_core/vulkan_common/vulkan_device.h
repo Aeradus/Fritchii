@@ -51,7 +51,8 @@ VK_DEFINE_HANDLE(VmaPool)
             shader_demote_to_helper_invocation)                                                    \
     FEATURE(EXT, SubgroupSizeControl, SUBGROUP_SIZE_CONTROL, subgroup_size_control)                \
     FEATURE(KHR, Maintenance4, MAINTENANCE_4, maintenance4)                                        \
-    FEATURE(KHR, Synchronization2, SYNCHRONIZATION_2, synchronization2)
+    FEATURE(KHR, Synchronization2, SYNCHRONIZATION_2, synchronization2)                            \
+    FEATURE(KHR, ShaderIntegerDotProduct, SHADER_INTEGER_DOT_PRODUCT, shader_integer_dot_product)
 
 #define FOR_EACH_VK_FEATURE_1_4(FEATURE)
 
@@ -83,6 +84,7 @@ VK_DEFINE_HANDLE(VmaPool)
             pipeline_executable_properties)                                                        \
     FEATURE(KHR, PresentId, PRESENT_ID, present_id)                                                \
     FEATURE(KHR, PresentWait, PRESENT_WAIT, present_wait)                                          \
+    FEATURE(EXT, ShaderFloat8, SHADER_FLOAT8, shader_float8)                                       \
     FEATURE(KHR, ShaderQuadControl, SHADER_QUAD_CONTROL, shader_quad_control)                      \
     FEATURE(KHR, ShaderMaximalReconvergence, SHADER_MAXIMAL_RECONVERGENCE,                        \
             shader_maximal_reconvergence)                                                        \

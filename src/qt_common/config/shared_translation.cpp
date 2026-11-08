@@ -155,6 +155,12 @@ std::unique_ptr<TranslationMap> InitializeTranslations(QObject* parent) {
            tr("Strength of RCAS (AMD's contrast-adaptive sharpening) on the upscaler used in place "
               "of a game's DLSS (AMD FSR 3.1); 0% turns it off.\nAlso sets the sharpening "
               "of the AMD FSR 1 and SGSR window adapting filters."));
+    INSERT(Settings, amd_fsr4, tr("Use AMD FSR 4 in place of a game's upscaler (experimental)"),
+           tr("Uses AMD FSR 4 (machine learning upscaling) in place of the game's own upscale "
+              "pass where Lichii replaces it (The Legend of Zelda: Ocarina of Time).\nNeeds an "
+              "AMD Radeon RX 9000 series card and AMD's signed amd_fidelityfx_loader_vk.dll and "
+              "amd_fidelityfx_upscaler_vk.dll (AMD FSR SDK 2.4 or later) next to the executable. "
+              "NVIDIA DLSS takes precedence when it is on."));
     INSERT(Settings, nvidia_dlss, tr("Use NVIDIA DLSS in place of a game's DLSS (experimental)"),
            tr("Uses NVIDIA DLSS on GeForce RTX cards in place of a Switch 2 game's own DLSS, "
               "instead of AMD FSR 3.1.\nNeeds NVIDIA's Streamline loader, and NVIDIA DLSS unless "

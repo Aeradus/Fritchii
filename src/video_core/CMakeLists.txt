@@ -196,6 +196,7 @@ add_library(video_core STATIC
     renderer_vulkan/vk_dlss_network_probe.h
     renderer_vulkan/vk_ocarina_camera_motion.cpp
     renderer_vulkan/vk_ocarina_camera_motion.h
+    renderer_vulkan/vk_temporal_upscaler.h
     renderer_vulkan/vk_compute_pipeline.cpp
     renderer_vulkan/vk_compute_pipeline.h
     renderer_vulkan/vk_cooperative_hmma_test.cpp
@@ -556,14 +557,20 @@ if (ENABLE_NVIDIA_DLSS)
         AddJsonPackage(NAME streamline DOWNLOAD_ONLY)
         set(STREAMLINE_INCLUDE_DIR "${streamline_SOURCE_DIR}/include")
     endif()
+    # AMD FSR 4 through AMD's FidelityFX API rides on the same replacement of a game's upscale
+    # pass. Only the API's MIT-licensed headers are compiled in (externals/ffx-api); AMD's signed
+    # loader and upscaler DLLs are loaded at run time from next to the executable.
     target_sources(video_core PRIVATE
+        renderer_vulkan/vk_ffx_upscaler.cpp
+        renderer_vulkan/vk_ffx_upscaler.h
         renderer_vulkan/vk_streamline_dlss.cpp
         renderer_vulkan/vk_streamline_dlss.h
         vulkan_common/streamline.cpp
         vulkan_common/streamline.h
         vulkan_common/streamline_api.h
     )
-    target_include_directories(video_core PRIVATE "${STREAMLINE_INCLUDE_DIR}")
+    target_include_directories(video_core PRIVATE "${STREAMLINE_INCLUDE_DIR}"
+                               "${CMAKE_SOURCE_DIR}/externals/ffx-api/include")
     target_link_libraries(video_core PRIVATE version wintrust crypt32)
     target_compile_definitions(video_core PUBLIC EGLANTINE_STREAMLINE)
     message(STATUS "NVIDIA DLSS through Streamline: ${STREAMLINE_INCLUDE_DIR}")

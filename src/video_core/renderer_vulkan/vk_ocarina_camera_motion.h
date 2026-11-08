@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "common/common_types.h"
+#include "video_core/renderer_vulkan/vk_temporal_upscaler.h"
 #include "video_core/renderer_vulkan/vk_update_descriptor.h"
 #include "video_core/vulkan_common/vulkan_wrapper.h"
 
@@ -30,8 +31,10 @@ struct OcarinaActorMesh {
 #ifdef EGLANTINE_STREAMLINE
 class OcarinaLiveDlss {
 public:
+    /// `upscaler` is NVIDIA DLSS (Streamline) or AMD FSR 4 (FidelityFX API).
     OcarinaLiveDlss(const Device& device, Scheduler& scheduler, DescriptorPool& pool,
-                    ComputePassDescriptorQueue& queue, MemoryAllocator& allocator);
+                    ComputePassDescriptorQueue& queue, MemoryAllocator& allocator,
+                    std::unique_ptr<TemporalUpscaler> upscaler);
     ~OcarinaLiveDlss();
 
     [[nodiscard]] bool EvaluationFailed() const;

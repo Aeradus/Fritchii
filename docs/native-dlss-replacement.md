@@ -38,7 +38,24 @@ and should remain private. No shaders are skipped or game files changed by this 
 
 The Legend of Zelda: Ocarina of Time (`0400486024DEC000`) has no DLSS of its own. Its
 end-of-frame upscale pass is replaced with NVIDIA DLSS when the setting is on and Streamline
-has DLSS for the device. FSR is not used for this game, and no environment override is needed.
+has DLSS for the device, or else with AMD FSR 4 when "Use AMD FSR 4 in place of a game's
+upscaler" (`amd_fsr4`) is on and AMD's loader offers FSR 4 for the device. FSR 3.1 is not used
+for this game, and no environment override is needed.
+
+AMD FSR 4 (`vk_ffx_upscaler.cpp`) goes through AMD's FidelityFX API: the MIT-licensed headers
+in `externals/ffx-api` are compiled in, and AMD's signed `amd_fidelityfx_loader_vk.dll` and
+`amd_fidelityfx_upscaler_vk.dll` (FSR SDK 2.4 or later, `Kits/FidelityFX/signedbin`) are
+loaded at run time from next to the executable. The loader picks the first upscaler version
+named `4.*` (`EDEN_NX2_FSR_VERSION=3.1` picks FSR 3.1 instead) and the log says
+`AMD FSR: upscaler 4.1.2 (offered: ...)`. While the option is on the device enables
+`VK_EXT_shader_float8`, which FSR 4's model needs (Radeon RX 9000 series). It takes the same
+inputs as DLSS below (LDR, standard depth, no jitter); the sharpening slider sets its RCAS
+(`EDEN_NX2_FSR4_SHARPNESS=<0..1>|off` overrides it). On a Radeon RX 9070 XT in Kakariko it cost
+about 2-3% fps against the game's own pass.
+
+`EDEN_NX2_EXP40` (live through the debug server): 1 leaves the game's pass in place for A/B
+runs; 2 makes the full-size pass's replacement write 1440p into the game's frame instead of the
+3840x2160 image (for 1440p screens).
 
 - Max Resolution add-on off: the 3/4-scale pass (`e40f5efb5480e692`) is replaced and DLSS
   writes the game's output size (1080p to 1440p docked, 810p to 1080p handheld).
