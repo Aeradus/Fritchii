@@ -387,6 +387,9 @@ struct Values {
                                                        true};
     // NVIDIA DLSS (through NVIDIA Streamline) in place of a game's DLSS.
     SwitchableSetting<bool> nvidia_dlss{linkage, false, "nvidia_dlss", Category::Renderer};
+    // AMD FSR 4 (AMD's FidelityFX API, signed DLLs next to the executable) in place of a game's
+    // upscale pass where the emulator replaces it (Ocarina of Time). NVIDIA DLSS takes precedence.
+    SwitchableSetting<bool> amd_fsr4{linkage, false, "amd_fsr4", Category::Renderer};
     SwitchableSetting<AspectRatio, true> aspect_ratio{linkage,
                                                       AspectRatio::R16_9,
                                                       "aspect_ratio",

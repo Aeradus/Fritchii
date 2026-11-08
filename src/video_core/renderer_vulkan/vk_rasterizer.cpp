@@ -53,6 +53,7 @@
 #include "video_core/renderer_vulkan/maxwell_to_vk.h"
 #include "video_core/renderer_vulkan/vk_ocarina_camera_motion.h"
 #ifdef EGLANTINE_STREAMLINE
+#include "video_core/renderer_vulkan/vk_ffx_upscaler.h"
 #include "video_core/renderer_vulkan/vk_streamline_dlss.h"
 #include "video_core/vulkan_common/streamline.h"
 #endif
@@ -1465,11 +1466,12 @@ void RasterizerVulkan::DrawIndirect() {
 
 VideoCommon::OotNetwork::BypassState* RasterizerVulkan::OotNetworkBypass() {
 #ifdef EGLANTINE_STREAMLINE
-    // NVIDIA DLSS replaces the same output pass and takes precedence until its evaluation fails.
+    // NVIDIA DLSS or AMD FSR 4 replaces the same output pass and takes precedence until its
+    // evaluation fails.
     if (OcarinaDlssEnabled() && !(oot_live_dlss && oot_live_dlss->EvaluationFailed())) {
         static bool logged = false;
         if (!std::exchange(logged, true)) {
-            LOG_INFO(Render_Vulkan, "Ocarina of Time: No sharpening is off while NVIDIA DLSS is on");
+            LOG_INFO(Render_Vulkan, "Ocarina of Time: No sharpening is off while NVIDIA DLSS or AMD FSR 4 is on");
         }
         return nullptr;
     }
@@ -2863,8 +2865,11 @@ void RasterizerVulkan::TracePendingCpuWrites(bool compute, std::span<const u64> 
 #ifdef EGLANTINE_STREAMLINE
 bool RasterizerVulkan::OcarinaDlssEnabled() const {
     constexpr u64 ocarina_program = 0x0400486024DEC000ULL;
+    // EDEN_NX2_EXP40 & 1: leave the game's own upscale pass in place (live A/B).
     return program_id == ocarina_program && !oot_live_failed &&
-           Settings::values.nvidia_dlss.GetValue() && Streamline::IsDlssAvailable();
+           (VideoCore::Nx2Debug::Experiment(40) & 1) == 0 &&
+           ((Settings::values.nvidia_dlss.GetValue() && Streamline::IsDlssAvailable()) ||
+            (Settings::values.amd_fsr4.GetValue() && FfxUpscaler::IsAvailable(device)));
 }
 
 /// Capture the two camera matrices from a draw targeting the scene color and depth. Terrain and
@@ -3131,17 +3136,29 @@ bool RasterizerVulkan::TryOcarinaDlss(const ComputePipeline& pipeline, bool repl
     try {
         const auto target_view =
             target.StorageView(Shader::TextureType::Color2D, Shader::ImageFormat::Typeless, false);
-        const auto scene_reference = upscale_4k ? target.Handle(Shader::TextureType::Color2D)
-                                                : VK_NULL_HANDLE;
-        if (!target_view || (upscale_4k && !scene_reference)) {
+        // EDEN_NX2_EXP40 & 2: with the full-size pass, write the upscaler's 1440p output into the
+        // game's frame instead of a 3840x2160 image (anti-aliasing at the output size).
+        const bool output_4k = upscale_4k && (VideoCore::Nx2Debug::Experiment(40) & 2) == 0;
+        const auto scene_reference = output_4k ? target.Handle(Shader::TextureType::Color2D)
+                                               : VK_NULL_HANDLE;
+        if (!target_view || (output_4k && !scene_reference)) {
             return fail("no upscale target view");
         }
         if (!oot_live_dlss) {
+            // NVIDIA DLSS when it's on and available, AMD FSR 4 otherwise.
+            std::unique_ptr<TemporalUpscaler> upscaler;
+            if (Settings::values.nvidia_dlss.GetValue() && Streamline::IsDlssAvailable()) {
+                upscaler = std::make_unique<StreamlineDlssUpscaler>(device, scheduler,
+                                                                    memory_allocator);
+            } else {
+                upscaler = std::make_unique<FfxUpscaler>(device, scheduler, memory_allocator);
+            }
             oot_live_dlss = std::make_unique<OcarinaLiveDlss>(
-                device, scheduler, descriptor_pool, compute_pass_descriptor_queue, memory_allocator);
+                device, scheduler, descriptor_pool, compute_pass_descriptor_queue, memory_allocator,
+                std::move(upscaler));
         }
         const VkExtent2D target_extent{target.size.width, target.size.height};
-        const VkExtent2D output_extent = upscale_4k ? VkExtent2D{3840, 2160} : target_extent;
+        const VkExtent2D output_extent = output_4k ? VkExtent2D{3840, 2160} : target_extent;
         const bool recorded = oot_live_dlss->Record(color_view, depth.DepthView(), target_view,
                                                    extent, output_extent, target_extent, oot_motion.current,
                                                    oot_motion.previous, mesh, depth.ImageHandle(),
@@ -3149,7 +3166,7 @@ bool RasterizerVulkan::TryOcarinaDlss(const ComputePipeline& pipeline, bool repl
         if (!recorded) {
             return fail("DLSS declined the frame");
         }
-        if (upscale_4k) {
+        if (output_4k) {
             oot_live_dlss->SaveSceneReference(scene_reference);
             oot_4k_scene_frame = render_trace_frame;
             oot_4k_guest_present = VK_NULL_HANDLE;

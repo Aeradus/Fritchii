@@ -408,7 +408,7 @@ public:
                       code) {}
 
     void Record(Scheduler& scheduler, const void* descriptors, VkImage input,
-                VkExtent2D extent, const StreamlineDlssUpscaler* require_success = nullptr) {
+                VkExtent2D extent, const TemporalUpscaler* require_success = nullptr) {
         scheduler.Record([this, descriptors, input, extent, require_success](vk::CommandBuffer cmd) {
             if (require_success && require_success->Failed()) {
                 return;
@@ -432,7 +432,7 @@ public:
         });
     }
     void RecordOutput(Scheduler& scheduler, const void* descriptors,
-                      const StreamlineDlssUpscaler& upscaler, VkExtent2D extent, u64 frame,
+                      const TemporalUpscaler& upscaler, VkExtent2D extent, u64 frame,
                       bool reset) {
         scheduler.Record([this, descriptors, &upscaler, extent, frame, reset](vk::CommandBuffer cmd) {
             if (upscaler.Failed()) {
@@ -491,7 +491,7 @@ public:
                       OCARINA_DLSS_4K_COMPOSITE_COMP_SPV) {}
 
     void Record(Scheduler& scheduler, const void* descriptors, VkImage image,
-                const StreamlineDlssUpscaler& upscaler, u64 frame) {
+                const TemporalUpscaler& upscaler, u64 frame) {
         scheduler.Record([this, descriptors, image, &upscaler, frame](vk::CommandBuffer cmd) {
             const auto output = ProbeBarrier(image, VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT,
                                              VK_ACCESS_SHADER_WRITE_BIT, VK_IMAGE_LAYOUT_UNDEFINED,
@@ -579,9 +579,10 @@ struct OcarinaFrameSlot {
 
 struct OcarinaLiveDlss::Impl {
     Impl(const Device& device_, Scheduler& scheduler_, DescriptorPool& pool,
-         ComputePassDescriptorQueue& queue_, MemoryAllocator& allocator_)
+         ComputePassDescriptorQueue& queue_, MemoryAllocator& allocator_,
+         std::unique_ptr<TemporalUpscaler> upscaler_)
         : device{device_}, scheduler{scheduler_}, queue{queue_}, allocator{allocator_}, pool{pool},
-          upscaler{device, scheduler, allocator}, motion_pass{device, scheduler, pool},
+          upscaler{std::move(upscaler_)}, motion_pass{device, scheduler, pool},
           color_pass{device, scheduler, pool},
           output_pass{device, scheduler, pool, OCARINA_DLSS_OUTPUT_COMP_SPV} {}
 
@@ -590,7 +591,7 @@ struct OcarinaLiveDlss::Impl {
     ComputePassDescriptorQueue& queue;
     MemoryAllocator& allocator;
     DescriptorPool& pool;
-    StreamlineDlssUpscaler upscaler;
+    std::unique_ptr<TemporalUpscaler> upscaler;
     CameraMotionPass motion_pass;
     OcarinaColorPass color_pass;
     OcarinaColorPass output_pass;
@@ -624,13 +625,15 @@ struct OcarinaLiveDlss::Impl {
 };
 
 OcarinaLiveDlss::OcarinaLiveDlss(const Device& device, Scheduler& scheduler, DescriptorPool& pool,
-                                 ComputePassDescriptorQueue& queue, MemoryAllocator& allocator)
-    : impl{std::make_unique<Impl>(device, scheduler, pool, queue, allocator)} {}
+                                 ComputePassDescriptorQueue& queue, MemoryAllocator& allocator,
+                                 std::unique_ptr<TemporalUpscaler> upscaler)
+    : impl{std::make_unique<Impl>(device, scheduler, pool, queue, allocator,
+                                  std::move(upscaler))} {}
 
 OcarinaLiveDlss::~OcarinaLiveDlss() = default;
 
 bool OcarinaLiveDlss::EvaluationFailed() const {
-    return impl->upscaler.Failed();
+    return impl->upscaler->Failed();
 }
 
 void OcarinaLiveDlss::SaveSceneReference(VkImageView color) {
@@ -645,10 +648,10 @@ void OcarinaLiveDlss::SaveSceneReference(VkImageView color) {
             state.device, state.scheduler, state.pool, OCARINA_DLSS_4K_REFERENCE_COMP_SPV);
     }
     state.queue.Acquire(state.scheduler, 2);
-    state.queue.AddSampledImage(color, state.upscaler.PointSampler());
+    state.queue.AddSampledImage(color, state.upscaler->PointSampler());
     state.queue.AddImage(*state.native_scene_view);
     state.reference_pass->Record(state.scheduler, state.queue.UpdateData(), *state.native_scene,
-                                 extent, &state.upscaler);
+                                 extent, state.upscaler.get());
     state.scheduler.InvalidateState();
 }
 
@@ -668,12 +671,12 @@ void OcarinaLiveDlss::Composite4k(VkImageView native_composite, u64 frame) {
     state.scheduler.RequestOutsideRenderPassOperationContext();
     state.queue.Acquire(state.scheduler, 4);
     const auto sampler = state.LinearSampler();
-    state.queue.AddSampledImage(state.upscaler.OutputView(), sampler);
+    state.queue.AddSampledImage(state.upscaler->OutputView(), sampler);
     state.queue.AddSampledImage(*state.native_scene_view, sampler);
     state.queue.AddSampledImage(native_composite, sampler);
     state.queue.AddImage(*state.composite_view);
     state.composite_pass->Record(state.scheduler, state.queue.UpdateData(), *state.composite,
-                                 state.upscaler, frame);
+                                 *state.upscaler, frame);
     state.scheduler.InvalidateState();
     state.composited_frame = frame;
 }
@@ -691,7 +694,7 @@ bool OcarinaLiveDlss::Record(VkImageView color, VkImageView depth, VkImageView t
                             const Matrix& current, const Matrix& previous,
                             const OcarinaActorMesh& mesh, VkImage depth_image, u64 frame) {
     auto& state = *impl;
-    if (state.last_frame == frame || state.upscaler.Failed()) {
+    if (state.last_frame == frame || state.upscaler->Failed()) {
         return false;
     }
     const auto transform = ClipToPreviousClip(current, previous);
@@ -709,7 +712,7 @@ bool OcarinaLiveDlss::Record(VkImageView color, VkImageView depth, VkImageView t
         *slot = std::make_unique<OcarinaFrameSlot>(state.device, state.allocator, extent);
     }
     auto& resources = **slot;
-    const VkSampler sampler = state.upscaler.PointSampler();
+    const VkSampler sampler = state.upscaler->PointSampler();
     const ActorTransforms actor_transforms{
         current, previous, mesh.current_origin, mesh.previous_origin,
         {static_cast<f32>(extent.width), static_cast<f32>(extent.height), 0, 0},
@@ -739,7 +742,7 @@ bool OcarinaLiveDlss::Record(VkImageView color, VkImageView depth, VkImageView t
     const bool reset = !state.last_frame || frame != *state.last_frame + 1 ||
                        !std::ranges::equal(previous, state.last_view_projection,
                                            [](f32 a, f32 b) { return std::abs(a - b) < 0.001f; });
-    if (!state.upscaler.Upscale({
+    if (!state.upscaler->Upscale({
             .color = {*resources.color_view, *resources.color, LIVE_COLOR_FORMAT, COLOR_RANGE,
                       VK_IMAGE_ASPECT_COLOR_BIT},
             .depth = {depth, depth_image, VK_FORMAT_D32_SFLOAT, DEPTH_RANGE, VK_IMAGE_ASPECT_DEPTH_BIT},
@@ -763,9 +766,9 @@ bool OcarinaLiveDlss::Record(VkImageView color, VkImageView depth, VkImageView t
         const bool same_size = output_extent.width == target_extent.width &&
                                output_extent.height == target_extent.height;
         const auto output_sampler = same_size ? sampler : state.LinearSampler();
-        state.queue.AddSampledImage(state.upscaler.OutputView(), output_sampler);
+        state.queue.AddSampledImage(state.upscaler->OutputView(), output_sampler);
         state.queue.AddImage(target);
-        state.output_pass.RecordOutput(state.scheduler, state.queue.UpdateData(), state.upscaler,
+        state.output_pass.RecordOutput(state.scheduler, state.queue.UpdateData(), *state.upscaler,
                                         target_extent, frame, reset);
     }
     state.scheduler.InvalidateState();

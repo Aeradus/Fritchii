@@ -1764,6 +1764,14 @@ void Device::RemoveUnsuitableExtensions() {
     RemoveExtensionFeatureIfUnsuitable(extensions.shader_quad_control, features.shader_quad_control,
                                        VK_KHR_SHADER_QUAD_CONTROL_EXTENSION_NAME);
 
+    // VK_EXT_shader_float8: only for AMD FSR 4, whose machine learning upscaler runs FP8
+    // cooperative matrices, and only while that option is on.
+    extensions.shader_float8 = Settings::values.amd_fsr4.GetValue() &&
+                               features.shader_float8.shaderFloat8 &&
+                               features.shader_float8.shaderFloat8CooperativeMatrix;
+    RemoveExtensionFeatureIfUnsuitable(extensions.shader_float8, features.shader_float8,
+                                       VK_EXT_SHADER_FLOAT8_EXTENSION_NAME);
+
     // VK_KHR_cooperative_matrix
     // Used only for the guest's HMMA.16816.F16, as a subgroup operation of compute shaders whose
     // subgroups are the guest's 32-lane warp. The matrices hold 16-bit floats, so the device needs
