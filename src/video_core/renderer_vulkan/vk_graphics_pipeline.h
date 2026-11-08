@@ -230,7 +230,6 @@ private:
     std::vector<SampledImage> sampled_images;
     u32 num_textures{};
     bool fragment_has_color0_output{};
-    bool fragment_stage_present{};
     u32 zero_texture_handles{};
     bool writes_storage{};
 

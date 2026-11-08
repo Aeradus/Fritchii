@@ -394,7 +394,6 @@ GraphicsPipeline::GraphicsPipeline(
         num_descriptor_entries += NumDescriptorEntries(*info);
     }
     fragment_has_color0_output = stage_infos[NUM_STAGES - 1].stores_frag_color[0];
-    fragment_stage_present = infos[NUM_STAGES - 1] != nullptr;
     const auto any_written = [](const auto& descriptors) {
         return std::ranges::any_of(descriptors, [](const auto& desc) { return desc.is_written; });
     };
@@ -1315,13 +1314,6 @@ void GraphicsPipeline::MakePipeline(VkRenderPass render_pass) {
         VkColorComponentFlags write_mask{};
         for (size_t i = 0; i < mask_table.size(); ++i) {
             write_mask |= mask[i] ? mask_table[i] : 0;
-        }
-        // Vulkan leaves an attachment the fragment shader has no output for undefined. AMD writes
-        // garbage there: Ocarina of Time's horizon visibility sprites (depth test only, no colour)
-        // left NaN and 65024 values along mountain ridges that bloom spread into rainbow lines
-        // (zortos293/Lichii#466). Write nothing instead.
-        if (fragment_stage_present && !stage_infos[NUM_STAGES - 1].stores_frag_color[index]) {
-            write_mask = 0;
         }
         cb_attachments.push_back({
             .blendEnable = blend.enable != 0,
