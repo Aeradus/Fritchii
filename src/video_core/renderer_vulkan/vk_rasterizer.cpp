@@ -2865,9 +2865,7 @@ void RasterizerVulkan::TracePendingCpuWrites(bool compute, std::span<const u64> 
 #ifdef EGLANTINE_STREAMLINE
 bool RasterizerVulkan::OcarinaDlssEnabled() const {
     constexpr u64 ocarina_program = 0x0400486024DEC000ULL;
-    // EDEN_NX2_EXP40 & 1: leave the game's own upscale pass in place (live A/B).
     return program_id == ocarina_program && !oot_live_failed &&
-           (VideoCore::Nx2Debug::Experiment(40) & 1) == 0 &&
            ((Settings::values.nvidia_dlss.GetValue() && Streamline::IsDlssAvailable()) ||
             (Settings::values.amd_fsr4.GetValue() && FfxUpscaler::IsAvailable(device)));
 }
@@ -3136,9 +3134,10 @@ bool RasterizerVulkan::TryOcarinaDlss(const ComputePipeline& pipeline, bool repl
     try {
         const auto target_view =
             target.StorageView(Shader::TextureType::Color2D, Shader::ImageFormat::Typeless, false);
-        // EDEN_NX2_EXP40 & 2: with the full-size pass, write the upscaler's 1440p output into the
+        // With the full-size pass, oot_upscaler_frame_size writes the upscaler's output into the
         // game's frame instead of a 3840x2160 image (anti-aliasing at the output size).
-        const bool output_4k = upscale_4k && (VideoCore::Nx2Debug::Experiment(40) & 2) == 0;
+        const bool output_4k =
+            upscale_4k && !Settings::values.oot_upscaler_frame_size.GetValue();
         const auto scene_reference = output_4k ? target.Handle(Shader::TextureType::Color2D)
                                                : VK_NULL_HANDLE;
         if (!target_view || (output_4k && !scene_reference)) {

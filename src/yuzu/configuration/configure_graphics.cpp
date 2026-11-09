@@ -228,8 +228,10 @@ void ConfigureGraphics::Setup(const ConfigurationShared::Builder& builder) {
         }
 #endif
 #ifndef EGLANTINE_STREAMLINE
-        // Only builds with NVIDIA Streamline (Windows) can use it.
-        if (setting->Id() == Settings::values.nvidia_dlss.Id()) {
+        // Only builds with NVIDIA Streamline (Windows) can use these.
+        if (setting->Id() == Settings::values.nvidia_dlss.Id() ||
+            setting->Id() == Settings::values.amd_fsr4.Id() ||
+            setting->Id() == Settings::values.oot_upscaler_frame_size.Id()) {
             continue;
         }
 #endif

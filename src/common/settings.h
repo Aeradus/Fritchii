@@ -390,6 +390,10 @@ struct Values {
     // AMD FSR 4 (AMD's FidelityFX API, signed DLLs next to the executable) in place of a game's
     // upscale pass where the emulator replaces it (Ocarina of Time). NVIDIA DLSS takes precedence.
     SwitchableSetting<bool> amd_fsr4{linkage, false, "amd_fsr4", Category::Renderer};
+    // Ocarina of Time with the Max Resolution add-on: NVIDIA DLSS or AMD FSR 4 write their output
+    // at the game's frame size (1440p docked) instead of a 3840x2160 image.
+    SwitchableSetting<bool> oot_upscaler_frame_size{linkage, false, "oot_upscaler_frame_size",
+                                                    Category::Renderer};
     SwitchableSetting<AspectRatio, true> aspect_ratio{linkage,
                                                       AspectRatio::R16_9,
                                                       "aspect_ratio",

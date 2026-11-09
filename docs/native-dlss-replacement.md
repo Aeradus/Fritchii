@@ -53,9 +53,9 @@ inputs as DLSS below (LDR, standard depth, no jitter); the sharpening slider set
 (`EDEN_NX2_FSR4_SHARPNESS=<0..1>|off` overrides it). On a Radeon RX 9070 XT in Kakariko it cost
 about 2-3% fps against the game's own pass.
 
-`EDEN_NX2_EXP40` (live through the debug server): 1 leaves the game's pass in place for A/B
-runs; 2 makes the full-size pass's replacement write 1440p into the game's frame instead of the
-3840x2160 image (for 1440p screens).
+The `oot_upscaler_frame_size` setting makes the full-size pass's replacement (DLSS or FSR 4)
+write 1440p into the game's frame instead of the 3840x2160 image (for 1440p screens). Turning
+`amd_fsr4` off during a game puts the game's own pass back at once, for A/B comparisons.
 
 - Max Resolution add-on off: the 3/4-scale pass (`e40f5efb5480e692`) is replaced and DLSS
   writes the game's output size (1080p to 1440p docked, 810p to 1080p handheld).
