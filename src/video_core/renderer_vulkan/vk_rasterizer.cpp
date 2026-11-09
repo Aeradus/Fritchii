@@ -3660,7 +3660,7 @@ void RasterizerVulkan::UpdateDynamicStates(const GraphicsPipeline* pipeline) {
     auto& flags = maxwell3d->dirty.flags;
     // A mesh emulation pipeline has static input assembly and vertex input. Binding it replaces
     // that dynamic state, so leave it to the next regular draw to set again.
-    const bool emulated_mesh{draw_pipeline != nullptr && draw_pipeline->IsEmulatedMesh()};
+    const bool emulated_mesh{pipeline != nullptr && pipeline->IsEmulatedMesh()};
     if (emulated_mesh) {
         state_tracker.InvalidateInputState();
     }
