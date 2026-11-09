@@ -27,8 +27,9 @@ namespace {
 
 // A new layout, or a Shader::Info field the serializer learns (info_serialize.cpp), needs a new
 // magic: kept files written before are then prepared again. 2: the precompiled record offsets
-// (the boot check reads each sampled record's key from them).
-constexpr std::string_view Magic{"NX2KEPT2"};
+// (the boot check reads each sampled record's key from them). 3: Shader::Info's
+// frag_color_components (zortos293/Lichii#353).
+constexpr std::string_view Magic{"NX2KEPT3"};
 constexpr std::string_view EndMagic{"NX2KEPTE"};
 constexpr u8 EntryInfo = 1;
 constexpr u8 EntrySpirv = 2;
