@@ -12,11 +12,11 @@ namespace {
 
 // Every field of Info is listed in VisitInfo below. An info that grows a field has to be listed
 // there too: this size check fails the build until it is (update the size with it).
-// Ported from zortos293/Lichii#896 for Fritchii: our Info has no frag_color_components (their
-// #8xx), so it is 8 bytes smaller and that field is not visited. A new field here also needs
-// PrecompiledKeptMagic (vk_pipeline_cache.cpp) bumped, so kept files written before are rebuilt.
+// Ported from zortos293/Lichii#896 for Fritchii; frag_color_components came with the
+// zortos293/Lichii#353 port. A new field here also needs the kept file Magic
+// (vk_precompiled_kept.cpp) bumped, so kept files written before are rebuilt.
 #if defined(_MSC_VER) && defined(_WIN64)
-static_assert(sizeof(Info) == 6928,
+static_assert(sizeof(Info) == 6936,
               "Shader::Info changed: list the new fields in VisitInfo, then update this size");
 // The descriptors are held in vectors, so a field they grow does not change sizeof(Info).
 static_assert(sizeof(ConstantBufferDescriptor) == 8 && sizeof(StorageBufferDescriptor) == 80 &&
@@ -297,6 +297,7 @@ void VisitInfo(Io& io, I& info) {
     io(info.legacy_stores_mapping);
     io(info.loads_indexed_attributes);
     io(info.stores_frag_color);
+    io(info.frag_color_components);
     io(info.stores_sample_mask);
     io(info.stores_frag_depth);
     io(info.stores_tess_level_outer);
