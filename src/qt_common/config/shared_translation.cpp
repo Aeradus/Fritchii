@@ -160,8 +160,7 @@ std::unique_ptr<TranslationMap> InitializeTranslations(QObject* parent) {
               "pass where Lichii replaces it (The Legend of Zelda: Ocarina of Time).\nNeeds an "
               "AMD Radeon RX 9000 series card and AMD's signed amd_fidelityfx_loader_vk.dll and "
               "amd_fidelityfx_upscaler_vk.dll (AMD FSR SDK 2.4 or later) next to the executable. "
-              "NVIDIA DLSS takes precedence when it is on.
-Turning it on takes effect when a "
+              "NVIDIA DLSS takes precedence when it is on.\nTurning it on takes effect when a "
               "game starts; turning it off takes effect at once."));
     INSERT(Settings, oot_upscaler_frame_size,
            tr("Ocarina of Time: AMD FSR 4 / NVIDIA DLSS output at the game's frame size"),
